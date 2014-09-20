@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js"> <!--<![endif]-->
+<head>
+    <meta charset="utf-8">
+    <title>Test work</title>
+    <meta name="viewport" content="width=device-width">
+
+    <link rel="stylesheet" href="http://maxcdn.bootstrapcdn.com/bootstrap/3.2.0/css/bootstrap.min.css">
+    
+    <script>
+    'use strict';
+    function CreateRequestObj() {
+        var forceActiveX = (window.ActiveXObject && location.protocol === "file:");
+        if (window.XMLHttpRequest && !forceActiveX) {
+            return new XMLHttpRequest();
+        } else {
+            try {
+                return new ActiveXObject("Microsoft.XMLHTTP");
+            } catch(e) {}
+        }
+    }
+    function validInput(name, val) {
+        if (name == 'email') {
+            var re = /^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+            return re.test(val);
+        }
+        if (name == 'password'){
+            return !!(
+                   val.match(/^[!-~]{6,}$/)
+                && val.match(/[a-z]/)
+                && val.match(/[A-Z]/)
+                && val.match(/\d/)
+            )
+        }
+    }
+    function GetMessageBody (form) {
+        var data = {};
+        for (var i = 0; i < form.elements.length; i++) {
+            var elem = form.elements[i],
+                pElem = elem.parentNode.parentNode,
+                nElem = document.getElementById(elem.name+'Help');
+            if (elem.name) {
+                pElem.className = "form-group";
+                if(validInput(encodeURIComponent(elem.name), elem.value)) {
+                    pElem.className += " has-success";
+                    nElem.className = "help-block hidden";
+                } else {
+                    pElem.className += " has-error";
+                    nElem.className = "help-block";
+                    return false;
+                }
+                data[encodeURIComponent (elem.name)] = encodeURIComponent (elem.value);
+            }
+        }
+        return JSON.stringify(data);
+    }
+
+    function IsRequestSuccessful (httpRequest) {
+        var success = (
+                httpRequest.status == 0 
+                || (httpRequest.status >= 200 && httpRequest.status < 300) 
+                || httpRequest.status == 400
+                || httpRequest.status == 401
+                || httpRequest.status == 500);
+        return success;
+    }   
+
+    var registering = false;
+
+    function OnReadyStateChanged (httpRequest, form) {
+        if (httpRequest.readyState == 0 || httpRequest.readyState == 4) {
+            
+            registering = false;
+            
+            httpRequest.onreadystatechange = null;
+            
+            document.getElementById('secAlert').className = 'hidden';
+            var alertDiv = document.getElementById('alert'),
+                alertSec = document.getElementById('secAlert'),
+                formAjax = document.getElementById('formAjax');
+            if (IsRequestSuccessful (httpRequest)) {
+                if (httpRequest.status >= 200 && httpRequest.status < 300) {
+                    alertDiv.className = 'alert alert-success';
+                    alertDiv.innerHTML = '<strong>Success!</strong> Logowanie poprawne.'
+                    alertSec.className = '';
+                    formAjax.className = 'hidden';
+                } else if (httpRequest.status == 400) {
+                    alertDiv.className = 'alert alert-info';
+                    alertDiv.innerHTML = '<strong>Info!</strong> Niepoprawne dane.'
+                    alertSec.className = '';
+                } else if (httpRequest.status == 401) {
+                    alertDiv.className = 'alert alert-warning';
+                    alertDiv.innerHTML = '<strong>Warning!</strong> Niepoprawne login lub hasło.'
+                    alertSec.className = '';
+                } else if (httpRequest.status == 500) {
+                    alertDiv.className = 'alert alert-danger';
+                    alertDiv.innerHTML = '<strong>Error!</strong> Błąd usługi.'
+                    alertSec.className = '';
+                }
+            } else {
+                alertDiv.className = 'alert alert-info';
+                alertDiv.innerHTML = '<strong>Info!</strong> An error occurred while registering. Please try it again.'
+                alertSec.className = '';
+            }
+        }
+    }
+
+    function AjaxSend (form, method) {
+        if (registering) {
+            return;
+        }
+
+        var url = form.getAttribute('action'),
+            data = GetMessageBody (form)
+
+        if (!data) return false;
+        
+        var httpRequest = CreateRequestObj();
+        try {
+            httpRequest.open (method, url, true);
+            httpRequest.onreadystatechange = function() {OnReadyStateChanged (httpRequest, form)};
+            httpRequest.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+            httpRequest.send (data);
+        }
+        catch (e) {
+            alert ("Cannot connect to the server!");
+            return;
+        }
+        registering = true;
+    }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <div class="row">
+            <div class="con-sm-12">
+                <div class="well">
+                    <div id="secAlert" class="hidden">
+                        <div class="alert alert-success" id="alert"><strong>Warning!</strong> Better check yourself, you're not looking too good.</div>
+                    </div>
+                    <form id="formAjax" class="form-horizontal" method="post" name="auth" action="q.php" onsubmit="AjaxSend (this, 'post'); return false;">
+                        <div class="form-group">
+                            <label for="email" class="col-sm-4 control-label">Email</label>
+                            <div class="col-sm-8">
+                                <input class="form-control" type="text" name="email" id="email" />
+                                <span id="emailHelp" class="help-block hidden">Email is not valid</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="password" class="col-sm-4 control-label">Password</label>
+                            <div class="col-sm-8">
+                                <input class="form-control" type="password" name="password" id="password" />
+                                <span id="passwordHelp" class="help-block hidden">Password need contain one small letter, one CAPS letter and one digital</span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="col-sm-offset-4 col-sm-8">
+                                <input id="btn-submit" class="btn btn-primary" type="submit" value="Login" />
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <a href="http://validator.w3.org/check?uri=http%3A%2F%2Fma-x.im%2Ftest%2F"><img src="http://www.w3.org/QA/Tools/I_heart_validator_lg" width="101" height="46" alt="I heart Validator" /><img src="http://www.w3.org/Icons/WWW/w3c_home_nb" alt="W3C" width="72" height="47"></a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
